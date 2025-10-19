@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Click Pay Mini App</title>
+<style>
+  body {
+    font-family: Poppins, sans-serif;
+    background: linear-gradient(145deg, #000000, #0d1117);
+    color: #fff;
+    margin: 0;
+    padding: 0;
+    text-align: center;
+  }
+  header {
+    background: #0a84ff;
+    padding: 12px;
+    font-size: 1.4em;
+    font-weight: bold;
+  }
+  .tabs {
+    display: flex;
+    justify-content: space-around;
+    background: #111;
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    padding: 10px 0;
+  }
+  .tab {
+    color: #bbb;
+    cursor: pointer;
+    font-size: 0.9em;
+  }
+  .tab.active {
+    color: #0af;
+  }
+  .container {
+    padding: 20px;
+    padding-bottom: 70px;
+  }
+  button {
+    background: #0af;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-weight: bold;
+    cursor: pointer;
+    margin: 10px 0;
+  }
+  button:disabled {
+    opacity: 0.6;
+  }
+  input {
+    padding: 8px;
+    border-radius: 8px;
+    border: none;
+    width: 80%;
+    margin-bottom: 10px;
+  }
+</style>
+</head>
+<body>
+  <header>💎 Click Pay Mini App</header>
+  <div id="content" class="container"></div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="home">🏠 Home</div>
+    <div class="tab" data-tab="ads">🎥 Watch Ads</div>
+    <div class="tab" data-tab="ref">👥 Referral</div>
+    <div class="tab" data-tab="withdraw">💸 Withdraw</div>
+  </div>
+
+<script>
+let balance = parseFloat(localStorage.getItem("balance") || "0");
+let totalRefs = parseInt(localStorage.getItem("refs") || "0");
+
+// Referral detection
+const urlParams = new URLSearchParams(window.location.search);
+const ref = urlParams.get('ref');
+if (ref && !localStorage.getItem("ref_credit_" + ref)) {
+  balance += 0.01;
+  localStorage.setItem("balance", balance.toFixed(4));
+  localStorage.setItem("ref_credit_" + ref, "done");
+  alert(`🎁 Referral from ${ref}! +$0.01 added`);
+}
+
+function saveData() {
+  localStorage.setItem("balance", balance.toFixed(4));
+  localStorage.setItem("refs", totalRefs);
+}
+
+function showHome() {
+  document.getElementById("content").innerHTML = `
+    <h2>🏠 Dashboard</h2>
+    <p><b>Total Balance:</b> $${balance.toFixed(4)}</p>
+    <p><b>Total Referrals:</b> ${totalRefs}</p>
+    <button onclick="goWithdraw()">Withdraw</button>
+  `;
+}
+
+function showAds() {
+  document.getElementById("content").innerHTML = `
+    <h2>🎥 Watch Ads</h2>
+    <p>Click below to watch and earn $0.0001</p>
+    <button id="watchBtn" onclick="watchAd()">Watch Ad</button>
+  `;
+}
+
+function showRef() {
+  const username = "@click_money01bot";
+  const link = \`https://yourapp.github.io/?ref=\${username}\`;
+  document.getElementById("content").innerHTML = `
+    <h2>👥 Referral</h2>
+    <p>Share your referral link:</p>
+    <input value="${link}" readonly />
+    <button onclick="copyRef()">Copy Link</button>
+  `;
+}
+
+function copyRef() {
+  const input = document.querySelector("input");
+  input.select();
+  document.execCommand("copy");
+  alert("✅ Referral link copied!");
+}
+
+function showWithdraw() {
+  document.getElementById("content").innerHTML = `
+    <h2>💸 Withdraw</h2>
+    <p>Minimum withdraw: $0.10</p>
+    <input id="binance" placeholder="Enter Binance ID" />
+    <button onclick="withdrawNow()">Confirm Withdraw</button>
+  `;
+}
+
+async function watchAd() {
+  const btn = document.getElementById("watchBtn");
+  btn.disabled = true;
+  btn.innerText = "⏳ Watching...";
+  window.open("https://www.effectivegatecpm.com/dnm2jrcaj?key=c73c264e4447410ce55eb32960238eaa", "_blank");
+  setTimeout(() => {
+    balance += 0.0001;
+    saveData();
+    alert("✅ +$0.0001 added!");
+    btn.disabled = false;
+    btn.innerText = "Watch Ad";
+    showHome();
+  }, 5000);
+}
+
+async function withdrawNow() {
+  const binanceId = document.getElementById("binance").value.trim();
+  if (!binanceId) return alert("❌ Please enter your Binance ID");
+  if (balance < 0.1) return alert("❌ Minimum $0.10 required");
+  const amount = balance.toFixed(2);
+  balance = 0;
+  saveData();
+
+  const msg = \`💸 Withdraw Request\\n👤 User: @click_money01bot\\n💰 Amount: $\${amount}\\n🆔 Binance ID: \${binanceId}\`;
+  const telegramUrl = \`https://t.me/share/url?url=&text=\${encodeURIComponent(msg)}\`;
+  window.open(telegramUrl, "_blank");
+
+  alert("✅ Withdraw request sent to @clickmoney!");
+  showHome();
+}
+
+function goWithdraw() {
+  setActiveTab("withdraw");
+  showWithdraw();
+}
+
+function setActiveTab(tab) {
+  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+  document.querySelector(\`[data-tab="\${tab}"]\`).classList.add("active");
+  if (tab === "home") showHome();
+  else if (tab === "ads") showAds();
+  else if (tab === "ref") showRef();
+  else if (tab === "withdraw") showWithdraw();
+}
+
+// Tab click handler
+document.querySelectorAll(".tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    setActiveTab(tab.getAttribute("data-tab"));
+  });
+});
+
+// Initial view
+showHome();
+</script>
+</body>
+  </html>
