@@ -1,0 +1,67 @@
+body {
+  font-family: 'Poppins', sans-serif;
+  background: #0a0a0a;
+  color: #fff;
+  margin: 0;
+  padding: 0;
+  text-align: center;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+header {
+  background: linear-gradient(90deg, #ff004c, #007aff);
+  padding: 15px 0;
+  color: white;
+  font-size: 22px;
+  font-weight: bold;
+  text-shadow: 1px 1px 4px #000;
+}
+
+main {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.card {
+  background: #121212;
+  border-radius: 15px;
+  padding: 15px;
+  box-shadow: 0 0 10px rgba(255,255,255,0.1);
+  margin-bottom: 15px;
+}
+
+.btn {
+  background: linear-gradient(90deg, #007aff, #00ff99);
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.tabs {
+  display: flex;
+  background: #1c1c1c;
+}
+
+.tabs button {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #aaa;
+  padding: 10px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.tabs button.active {
+  background: #007aff;
+  color: white;
+}
