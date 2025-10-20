@@ -1,0 +1,139 @@
+import express from "express";
+import fetch from "node-fetch";
+import dotenv from "dotenv";
+import cors from "cors";
+import { MongoClient } from "mongodb";
+
+dotenv.config();
+
+const app = express();
+app.use(express.json());
+app.use(cors());
+
+const BOT_TOKEN = process.env.BOT_TOKEN;         // Telegram bot token
+const CHANNEL_ID = process.env.CHANNEL_ID;       // e.g. @clickmoney (channel for notifications)
+const MONGO_URI = process.env.MONGO_URI;         // MongoDB Atlas connection string
+
+if (!BOT_TOKEN || !CHANNEL_ID || !MONGO_URI) {
+  console.error("Missing environment variables. Set BOT_TOKEN, CHANNEL_ID, MONGO_URI");
+}
+
+const client = new MongoClient(MONGO_URI, {});
+
+let db, usersCol, withdrawsCol, earningsCol;
+
+async function connectDB(){
+  await client.connect();
+  db = client.db("clickmoney");
+  usersCol = db.collection("users");
+  withdrawsCol = db.collection("withdraws");
+  earningsCol = db.collection("earnings");
+  console.log("✅ MongoDB connected");
+}
+connectDB().catch(err => console.error("MongoDB connect error:", err));
+
+// helper - send message to telegram channel
+async function sendToTelegram(text) {
+  try {
+    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: CHANNEL_ID, text, parse_mode: "Markdown" })
+    });
+  } catch (e) {
+    console.error("Telegram send error:", e);
+  }
+}
+
+// --- Get balance
+app.get("/api/balance/:userId", async (req, res) => {
+  const userId = req.params.userId;
+  const u = await usersCol.findOne({ userId });
+  res.json({ balance: u?.balance || 0, referrals: u?.referrals || 0, referrerId: u?.referrerId || null });
+});
+
+// --- Referral link called when new user arrives with ref param
+// body: { referrerId, newUserId }
+app.post("/api/referral", async (req, res) => {
+  const { referrerId, newUserId } = req.body;
+  if (!referrerId || !newUserId) return res.status(400).json({ error: "Missing data" });
+
+  // If newUser already exists, don't re-register
+  const existing = await usersCol.findOne({ userId: newUserId });
+  if (existing) return res.json({ message: "User already registered" });
+
+  // create new user and set referrer
+  await usersCol.insertOne({ userId: newUserId, balance: 0, referrals: 0, referrerId: referrerId });
+
+  // give referrer $0.01 and increment referrals count
+  await usersCol.updateOne({ userId: referrerId }, { $inc: { balance: 0.01, referrals: 1 } }, { upsert: true });
+
+  const text = `🎁 *Referral Bonus!*\n👥 Referrer: ${referrerId}\n🆕 New User: ${newUserId}\n💰 Bonus: $0.01 + 10% commission`;
+  await sendToTelegram(text);
+  res.json({ success: true });
+});
+
+// --- Earning endpoint (ads / captcha)
+// body: { userId, type, amount }
+// On earn: credit user; if user has referrer credit 10% commission to referrer
+app.post("/api/earn", async (req, res) => {
+  const { userId, type, amount } = req.body;
+  if (!userId || !amount || !type) return res.status(400).json({ error: "Missing data" });
+
+  const amt = parseFloat(amount);
+  if (isNaN(amt) || amt <= 0) return res.status(400).json({ error: "Invalid amount" });
+
+  // credit user
+  await usersCol.updateOne({ userId }, { $inc: { balance: amt } }, { upsert: true });
+
+  // log earning
+  await earningsCol.insertOne({ userId, type, amount: amt, date: new Date() });
+
+  // commission to referrer (10%)
+  const user = await usersCol.findOne({ userId });
+  const referrerId = user?.referrerId;
+  if (referrerId) {
+    const commission = +(amt * 0.10).toFixed(6);
+    if (commission > 0) {
+      await usersCol.updateOne({ userId: referrerId }, { $inc: { balance: commission } }, { upsert: true });
+      // notify referrer commission
+      const txt2 = `🔁 *Referral Commission*\n👥 Referrer: ${referrerId}\n👤 From User: ${userId}\n💰 Commission: $${commission.toFixed(6)}`;
+      await sendToTelegram(txt2);
+    }
+  }
+
+  const text = `🪙 *Earning Activity*\n👤 User: ${userId}\n📘 Type: ${type}\n💰 Amount: $${amt.toFixed(6)}`;
+  await sendToTelegram(text);
+
+  res.json({ success: true });
+});
+
+// --- Withdraw endpoint
+// body: { wallet, amount, userId }
+app.post("/api/withdraw", async (req, res) => {
+  const { wallet, amount, userId } = req.body;
+  if (!wallet || !amount || !userId) return res.status(400).json({ error: "Missing data" });
+
+  const amt = parseFloat(amount);
+  if (isNaN(amt) || amt <= 0) return res.status(400).json({ error: "Invalid amount" });
+
+  const user = await usersCol.findOne({ userId });
+  if (!user || (user.balance || 0) < amt) return res.status(400).json({ error: "Insufficient balance" });
+
+  // deduct
+  await usersCol.updateOne({ userId }, { $inc: { balance: -amt } });
+
+  // log withdraw
+  await withdrawsCol.insertOne({ userId, wallet, amount: amt, date: new Date(), status: "pending" });
+
+  const text = `💸 *Withdraw Request*\n👤 User: \`${userId}\`\n💰 Amount: *$${amt.toFixed(2)}*\n🏦 Wallet: \`${wallet}\``;
+  await sendToTelegram(text);
+
+  res.json({ success: true });
+});
+
+// --- Simple health
+app.get("/api/health", (req,res) => res.json({ ok: true }));
+
+// Start (Vercel will use exported app)
+export default app;
