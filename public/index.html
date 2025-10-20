@@ -1,16 +1,34 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Click Money 💸</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css"/>
+  <!-- Firebase v9 modular SDK from CDN -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+    import { getFirestore } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+    // Provide firebaseConfig into window so script.js can use it
+    window._FIREBASE_CONFIG = {
+      apiKey: "AIzaSyDFWIpS475msYpv4CxQWejrCQxxDT1uZyk",
+      authDomain: "clickmoney-ff9c1.firebaseapp.com",
+      projectId: "clickmoney-ff9c1",
+      storageBucket: "clickmoney-ff9c1.firebasestorage.app",
+      messagingSenderId: "624019199737",
+      appId: "1:624019199737:web:30daea59e311b7f9cff428",
+      measurementId: "G-VRPE3CC7EF"
+    };
+    const app = initializeApp(window._FIREBASE_CONFIG);
+    const db = getFirestore(app);
+    window._FIRESTORE = db;
+  </script>
+
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
   <div class="app">
     <header>💸 Click Money</header>
-
     <nav class="tabs">
       <button data-tab="home" class="active">🏠 Home</button>
       <button data-tab="earn">🎯 Earn</button>
@@ -22,6 +40,6 @@
     <main id="content"></main>
   </div>
 
-  <script src="script.js"></script>
+  <script type="module" src="script.js"></script>
 </body>
 </html>
